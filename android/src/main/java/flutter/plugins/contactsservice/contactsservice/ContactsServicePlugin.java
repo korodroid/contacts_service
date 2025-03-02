@@ -41,7 +41,8 @@ import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 // import io.flutter.plugin.common.PluginRegistry;
-import io.flutter.plugin.common.PluginRegistry.Registrar;
+//import io.flutter.plugin.common.PluginRegistry.Registrar;
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
 
 import static android.app.Activity.RESULT_CANCELED;
 import static android.provider.ContactsContract.CommonDataKinds;
@@ -70,9 +71,9 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
 //    this.delegate = new ContactServiceDelegateOld(registrar);
 //  }
 
-  private void initDelegateWithRegister(BinaryMessenger messenger) {
-      this.delegate = new ContactsServiceDelegateNew(messenger);
-  }
+   private void initDelegateWithRegister(BinaryMessenger messenger) {
+       this.delegate = new ContactServiceDelegate(context); // `ContactServiceDelegate` に統一
+   }
 
   //public static void registerWith(Registrar registrar) {
   //  ContactsServicePlugin instance = new ContactsServicePlugin();
@@ -273,40 +274,43 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
       }
     }
 
-    @Override
-    public boolean onActivityResult(int requestCode, int resultCode, Intent intent) {
-      if(requestCode == REQUEST_OPEN_EXISTING_CONTACT || requestCode == REQUEST_OPEN_CONTACT_FORM) {
-        try {
-          Uri ur = intent.getData();
-          finishWithResult(getContactByIdentifier(ur.getLastPathSegment()));
-        } catch (NullPointerException e) {
-          finishWithResult(FORM_OPERATION_CANCELED);
-        }
-        return true;
-      }
-
-      if (requestCode == REQUEST_OPEN_CONTACT_PICKER) {
-        if (resultCode == RESULT_CANCELED) {
-          finishWithResult(FORM_OPERATION_CANCELED);
-          return true;
-        }
-        Uri contactUri = intent.getData();
-          if (intent != null){
-        Cursor cursor = contentResolver.query(contactUri, null, null, null, null);
-        if (cursor.moveToFirst()) {
-          String id = contactUri.getLastPathSegment();
-          getContacts("openDeviceContactPicker", id, false, false, false, localizedLabels, this.result);
-        } else {
-          Log.e(LOG_TAG, "onActivityResult - cursor.moveToFirst() returns false");
-          finishWithResult(FORM_OPERATION_CANCELED);
-        }}else{return true;}
-        cursor.close();
-        return true;
-      }
-
-      finishWithResult(FORM_COULD_NOT_BE_OPEN);
-      return false;
+@Override
+public boolean onActivityResult(int requestCode, int resultCode, Intent intent) {
+  if (requestCode == REQUEST_OPEN_EXISTING_CONTACT || requestCode == REQUEST_OPEN_CONTACT_FORM) {
+    try {
+      Uri ur = intent.getData();
+      finishWithResult(getContactByIdentifier(ur.getLastPathSegment()));
+    } catch (NullPointerException e) {
+      finishWithResult(FORM_OPERATION_CANCELED);
     }
+    return true;
+  }
+
+  if (requestCode == REQUEST_OPEN_CONTACT_PICKER) {
+    if (resultCode == RESULT_CANCELED) {
+      finishWithResult(FORM_OPERATION_CANCELED);
+      return true;
+    }
+    Uri contactUri = intent.getData();
+    if (intent != null) {
+      Cursor cursor = contentResolver.query(contactUri, null, null, null, null);
+      if (cursor.moveToFirst()) {
+        String id = contactUri.getLastPathSegment();
+        getContacts("openDeviceContactPicker", id, false, false, false, localizedLabels, this.result);
+      } else {
+        Log.e(LOG_TAG, "onActivityResult - cursor.moveToFirst() returns false");
+        finishWithResult(FORM_OPERATION_CANCELED);
+      }
+    } else {
+      return true;
+    }
+    cursor.close();
+    return true;
+  }
+
+  finishWithResult(FORM_COULD_NOT_BE_OPEN);
+  return false;
+}
 
     void openExistingContact(Contact contact) {
       String identifier = contact.identifier;
@@ -379,23 +383,23 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
       }
   }
   
-  private class ContactServiceDelegateOld extends BaseContactsServiceDelegate {
-    private final PluginRegistry.Registrar registrar;
+  // private class ContactServiceDelegateOld extends BaseContactsServiceDelegate {
+  //   private final PluginRegistry.Registrar registrar;
 
-    ContactServiceDelegateOld(PluginRegistry.Registrar registrar) {
-      this.registrar = registrar;
-      registrar.addActivityResultListener(this);
-    }
+  //   ContactServiceDelegateOld(PluginRegistry.Registrar registrar) {
+  //     this.registrar = registrar;
+  //     registrar.addActivityResultListener(this);
+  //   }
 
-    @Override
-    void startIntent(Intent intent, int request) {
-      if (registrar.activity() != null) {
-        registrar.activity().startActivityForResult(intent, request);
-      } else {
-        registrar.context().startActivity(intent);
-      }
-    }
-  }
+  //   @Override
+  //   void startIntent(Intent intent, int request) {
+  //     if (registrar.activity() != null) {
+  //       registrar.activity().startActivityForResult(intent, request);
+  //     } else {
+  //       registrar.context().startActivity(intent);
+  //     }
+  //   }
+  // }
 
   private class ContactServiceDelegate extends BaseContactsServiceDelegate {
     private final Context context;
